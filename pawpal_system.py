@@ -13,12 +13,14 @@ class Owner:
 
     @property
     def available_minutes(self) -> int:
+        """Return total minutes between available_start and available_end."""
         fmt = "%H:%M"
         start = datetime.strptime(self.available_start, fmt)
         end = datetime.strptime(self.available_end, fmt)
         return int((end - start).total_seconds() / 60)
 
     def __str__(self) -> str:
+        """Return a human-readable summary of the owner."""
         return (
             f"Owner: {self.name} | Available {self.available_start}–{self.available_end} "
             f"| Prefers walks in the {self.preferred_walk_time}"
@@ -35,9 +37,11 @@ class Pet:
     owner: Owner
 
     def needs_walk(self) -> bool:
+        """Return True if the pet is a dog and requires daily walks."""
         return self.species == "dog"
 
     def __str__(self) -> str:
+        """Return a human-readable summary of the pet."""
         return (
             f"Pet: {self.name} ({self.breed}, {self.species}, {self.age_years}yr) "
             f"— owned by {self.owner.name}"
@@ -55,15 +59,23 @@ class CareTask:
     category: str = "general"  # feeding | walk | medication | grooming | enrichment | general
     notes: str = ""
     scheduled_time: Optional[str] = None   # set by DayScheduler (HH:MM)
+    status: str = "pending"                # pending | complete
+
+    def mark_complete(self) -> None:
+        """Set the task status to complete."""
+        self.status = "complete"
 
     @property
     def priority_value(self) -> int:
+        """Return the numeric priority (1=low, 2=medium, 3=high)."""
         return self.PRIORITIES.get(self.priority, 1)
 
     def schedule_at(self, time_str: str) -> None:
+        """Assign a scheduled start time (HH:MM) to this task."""
         self.scheduled_time = time_str
 
     def __str__(self) -> str:
+        """Return a human-readable summary of the task."""
         time_part = f" @ {self.scheduled_time}" if self.scheduled_time else " (unscheduled)"
         return (
             f"[{self.priority.upper()}] {self.title} ({self.duration_minutes} min)"
@@ -78,9 +90,11 @@ class DayScheduler:
     tasks: list[CareTask] = field(default_factory=list)
 
     def add_task(self, task: CareTask) -> None:
+        """Append a CareTask to the scheduler's task list."""
         self.tasks.append(task)
 
     def remove_task(self, title: str) -> bool:
+        """Remove a task by title and return True if it was found."""
         before = len(self.tasks)
         self.tasks = [t for t in self.tasks if t.title != title]
         return len(self.tasks) < before
@@ -127,4 +141,5 @@ class DayScheduler:
         return "\n".join(lines)
 
     def unscheduled_tasks(self) -> list[CareTask]:
+        """Return tasks that have no scheduled time assigned."""
         return [t for t in self.tasks if not t.scheduled_time]

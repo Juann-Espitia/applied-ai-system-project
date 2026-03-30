@@ -5,15 +5,25 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
-I want to have a section where users can enter their information and pet information. A section where they can see the tasks for the day/week, whether it be walking, feeding, medicine, etc.
-A section where they can implement constraints and priorities.
+
+My initial UML design is organized around three core concerns: who is involved (owner and pet), what needs to happen (tasks), and how to plan the day (scheduler). The diagram uses four classes connected by ownership and composition relationships. `Owner` connects to `Pet`, `Pet` connects to `DayScheduler`, and `DayScheduler` aggregates many `CareTask` objects. This gave me a clear separation between data (owner/pet info), work items (tasks), and logic (scheduling).
+
 - What classes did you include, and what responsibilities did you assign to each?
-I want 3 or so classes, one for pet owner, one for pet, and one for tasks.
+
+I ended up with four classes instead of three:
+
+1. **`Owner`** — stores the owner's name, daily availability window (start and end time), and preferred walk time. It also computes how many total minutes are available in a day, which the scheduler uses to fit tasks.
+
+2. **`Pet`** — stores the pet's name, species, breed, and age, and holds a reference to its `Owner`. It also has a `needs_walk()` helper that returns `True` for dogs, making it easy to apply species-specific logic later.
+
+3. **`CareTask`** — represents a single care activity (walk, feeding, medication, grooming, etc.) with a title, duration in minutes, priority level (low/medium/high), category, and optional notes. It holds a `scheduled_time` field that gets set once the scheduler assigns it a slot.
+
+4. **`DayScheduler`** — the central coordinator. It holds a reference to the `Pet` (and through it the `Owner`) and manages a list of `CareTask` objects. It exposes `add_task()`, `remove_task()`, `build_schedule()` (which sorts by priority and assigns sequential time slots), and `view_day()` (which prints the final agenda).
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+- Did your design change during implementation? None
+- If yes, describe at least one change and why you made it. N/A
 
 ---
 
