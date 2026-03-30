@@ -36,8 +36,9 @@ I ended up with four classes instead of three:
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+The conflict detector checks for overlapping time windows using exact `datetime` comparisons — it catches cases where two tasks literally overlap in clock time, but it does not account for travel time between tasks or soft buffers (e.g., a dog needing 10 minutes to cool down after a walk before eating). This means the scheduler can produce a technically conflict-free plan that is still impractical in real life.
+
+This tradeoff is reasonable for a first version because it keeps the logic simple and deterministic: no guessing at travel distances or pet-specific recovery times. A more accurate model would require additional data (location of tasks, species-specific cooldown rules) that we don't collect yet. For a pet owner using this as a rough daily guide, exact-overlap detection is already a useful safety net without overcomplicating the system.
 
 ---
 

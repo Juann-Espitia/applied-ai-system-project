@@ -1,12 +1,17 @@
 import streamlit as st
-from pawpal import Owner, Pet, CareTask, DayScheduler
+from pawpal_system import Owner, Pet, CareTask, DayScheduler
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 st.title("🐾 PawPal+")
 
 # ── Session state init ────────────────────────────────────────────────────────
+# Check before creating so objects survive reruns instead of being reset each time
 if "scheduler" not in st.session_state:
     st.session_state.scheduler = None
+if "schedule_output" not in st.session_state:
+    st.session_state.schedule_output = None
+if "unscheduled" not in st.session_state:
+    st.session_state.unscheduled = []
 
 # ── 1. Owner & Pet Info ───────────────────────────────────────────────────────
 st.header("1. Owner & Pet Info")
@@ -33,6 +38,8 @@ if st.button("Save Owner & Pet"):
     )
     pet = Pet(name=pet_name, species=species, breed=breed, age_years=age, owner=owner)
     st.session_state.scheduler = DayScheduler(pet=pet)
+    st.session_state.schedule_output = None  # reset stale schedule
+    st.session_state.unscheduled = []
     st.success(f"Saved! {pet} | Available minutes: {owner.available_minutes}")
 
 st.divider()
@@ -67,6 +74,7 @@ else:
                 notes=notes,
             )
             st.session_state.scheduler.add_task(task)
+            st.session_state.schedule_output = None  # clear stale schedule
             st.success(f"Added: {task_title}")
 
     with col_remove:
@@ -74,6 +82,7 @@ else:
         if st.button("Remove task"):
             removed = st.session_state.scheduler.remove_task(remove_title)
             if removed:
+                st.session_state.schedule_output = None  # clear stale schedule
                 st.success(f"Removed: {remove_title}")
             else:
                 st.warning(f"Task '{remove_title}' not found.")
@@ -105,11 +114,14 @@ elif not st.session_state.scheduler.tasks:
 else:
     if st.button("Generate schedule"):
         st.session_state.scheduler.build_schedule()
-        st.code(st.session_state.scheduler.view_day(), language=None)
+        # Store results in session_state so they survive the next rerun
+        st.session_state.schedule_output = st.session_state.scheduler.view_day()
+        st.session_state.unscheduled = st.session_state.scheduler.unscheduled_tasks()
 
-        unscheduled = st.session_state.scheduler.unscheduled_tasks()
-        if unscheduled:
+    if st.session_state.schedule_output:
+        st.code(st.session_state.schedule_output, language=None)
+        if st.session_state.unscheduled:
             st.warning(
                 "These tasks didn't fit in the available window: "
-                + ", ".join(t.title for t in unscheduled)
+                + ", ".join(t.title for t in st.session_state.unscheduled)
             )

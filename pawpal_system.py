@@ -60,10 +60,30 @@ class CareTask:
     notes: str = ""
     scheduled_time: Optional[str] = None   # set by DayScheduler (HH:MM)
     status: str = "pending"                # pending | complete
+    frequency: str = "once"               # once | daily | weekly
+    due_date: Optional[str] = None        # YYYY-MM-DD
 
     def mark_complete(self) -> None:
         """Set the task status to complete."""
         self.status = "complete"
+
+    def next_occurrence(self) -> Optional["CareTask"]:
+        """Return a new pending CareTask for the next recurrence, or None if one-time."""
+        if self.frequency == "once" or self.due_date is None:
+            return None
+        days = 1 if self.frequency == "daily" else 7
+        next_date = (
+            datetime.strptime(self.due_date, "%Y-%m-%d") + timedelta(days=days)
+        ).strftime("%Y-%m-%d")
+        return CareTask(
+            title=self.title,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            category=self.category,
+            notes=self.notes,
+            frequency=self.frequency,
+            due_date=next_date,
+        )
 
     @property
     def priority_value(self) -> int:
@@ -143,3 +163,48 @@ class DayScheduler:
     def unscheduled_tasks(self) -> list[CareTask]:
         """Return tasks that have no scheduled time assigned."""
         return [t for t in self.tasks if not t.scheduled_time]
+
+    def sort_by_time(self) -> list[CareTask]:
+        """Return scheduled tasks sorted chronologically by start time (HH:MM)."""
+        scheduled = [t for t in self.tasks if t.scheduled_time]
+        return sorted(scheduled, key=lambda t: t.scheduled_time or "")
+
+    def filter_tasks(
+        self, status: Optional[str] = None, category: Optional[str] = None
+    ) -> list[CareTask]:
+        """Return tasks matching the given status and/or category filters."""
+        result = self.tasks
+        if status:
+            result = [t for t in result if t.status == status]
+        if category:
+            result = [t for t in result if t.category == category]
+        return result
+
+    def complete_task(self, title: str) -> Optional[CareTask]:
+        """Mark a task complete; if recurring, add and return its next occurrence."""
+        for task in self.tasks:
+            if task.title == title:
+                task.mark_complete()
+                next_task = task.next_occurrence()
+                if next_task:
+                    self.tasks.append(next_task)
+                return next_task
+        return None
+
+    def detect_conflicts(self) -> list[str]:
+        """Return warning messages for any tasks whose time windows overlap."""
+        scheduled = [t for t in self.tasks if t.scheduled_time]
+        fmt = "%H:%M"
+        warnings = []
+        for i, a in enumerate(scheduled):
+            for b in scheduled[i + 1:]:
+                a_start = datetime.strptime(a.scheduled_time, fmt)  # type: ignore[arg-type]
+                a_end = a_start + timedelta(minutes=a.duration_minutes)
+                b_start = datetime.strptime(b.scheduled_time, fmt)  # type: ignore[arg-type]
+                b_end = b_start + timedelta(minutes=b.duration_minutes)
+                if a_start < b_end and b_start < a_end:
+                    warnings.append(
+                        f"CONFLICT: '{a.title}' ({a.scheduled_time}–{a_end.strftime(fmt)}) "
+                        f"overlaps '{b.title}' ({b.scheduled_time}–{b_end.strftime(fmt)})"
+                    )
+        return warnings
